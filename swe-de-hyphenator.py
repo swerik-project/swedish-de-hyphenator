@@ -111,11 +111,9 @@ def fixbrokens(inpath,wf,outpath):
                     print("'{}' was selected earlier".format(ddash))
                     newdash = ddash
                 elif re.match('[A-ZÅÄÖ]+-[a-zåäö]+',ddash):
-                    # Should be updated to support ÅÄÖ
                     print("Matching '[A-Z]+-[a-z]+' rule, dashing!")
                     newdash = ddash
                 elif re.match('[A-ZÅÄÖ][a-zåäö]+-[A-ZÅÄÖ][a-zåäö]+',ddash):
-                    # Should be updated to support ÅÄÖ
                     print("Matching '[A-Z][a-z]+-[A-Z][a-z]+' rule, dashing!")
                     newdash = ddash
                 elif re.match('\d+-\w+',ddash):
