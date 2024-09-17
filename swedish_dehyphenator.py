@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Author: Stian Rødven Eide
+"""
+A python program to remove end-line hyphenations from large texts.
 
+Author: Stian Rødven Eide
+"""
+import argparse
 import json
 import codecs
 import re
@@ -9,22 +13,41 @@ import os
 import pickle
 import getch
 
+
 def parsejson(jfile, path):
-    # Reads a json file in utf-8 and returns its
-    # contents as a nested dictionary
+    """
+    Reads a json file in utf-8 and returns its contents as a nested dictionary
+
+    Args:
+    jfile: json file name
+    path: path to json file
+    """
     jdoc = codecs.open(path + jfile, 'r', 'utf-8-sig')
     jdoc = jdoc.read()
     anfdict = json.loads(jdoc, encoding='utf-8')
     return anfdict
 
 def savejson(jfile, path, anfdict):
+    """
+    Saves formatted JSON file.
+
+    Args:
+    jfile: json file name
+    path: path to json file
+    anfdict: dict to save
+    """
     with codecs.open(path + jfile, 'w','utf-8-sig') as f:
         json.dump(anfdict, f, ensure_ascii=False, indent=4)
 
 
 def clean_anftext(anftext):
-    # This function removes unwanted formatting from the text
-    # These remove html-tags and inline headers
+    """
+    This function removes unwanted formatting from the text
+    These remove html-tags and inline headers
+
+    Args:
+    anftext: input text
+    """
     anftext = re.sub('<p> STYLEREF.*?>',' ', anftext)
     anftext = re.sub('<.*?>',' ', anftext)
     # These remove linebreaks and redundant whitespace
@@ -32,6 +55,7 @@ def clean_anftext(anftext):
     anftext = re.sub('\r',' ', anftext)
     anftext = re.sub(' {2,}',' ', anftext)
     return anftext
+
 
 def ask_user():
     """
@@ -69,7 +93,16 @@ def ask_user():
         ask_user()
     return char
 
-def fixbrokens(inpath,wf,outpath):
+
+def fixbrokens(inpath, wf, outpath):
+    """
+    Find dashes in text and potentially remove them.
+
+    Args:
+    - inpath: input path
+    - outpath: output path
+    - wf_anf: path to pickle, which is a word frequency dictionary with all words from parliamentary debates and their frequencies there: 'word': freq
+    """
     ignorewords = ['och','eller','som','till','utan','respektive', 'såväl', 
                    'snart', 'samt', 'kontra', 'än', 'men', 'o', 'inklusive', 
                    'framför', 'liksom','og','und']
@@ -169,7 +202,6 @@ def fixbrokens(inpath,wf,outpath):
 #            print(anftext_clean)
                 # Keeping track of how many dashes we fix
                 dcounter +=1
-        # here
         anftext_clean = anftext_clean.strip()
         anfdict['anforande']['anforandetext'] = anftext_clean
         savejson(file,outpath,anfdict)
@@ -180,21 +212,64 @@ def fixbrokens(inpath,wf,outpath):
         pickle.dump(autojoined,f)
 
 
-if __name__ == '__main__':
-    inpath = "all_anf/"
-    outpath = "fixed_anf/"
+def dehyphenate(autojoined, selected, inpath="all_anf/", outpath="fixed_anf/", wf_anf="wf_anf.pickle"):
+    """
+    Main dehyphenator program.
+
+    Args:
+    - autojoined: path to autojoined.pickle  (what is this and what's the structure? It's not passed anywhere..?)
+    - selected: path to selected.pickle)     (what is this and what's the structure? It's not passed anywhere..?)
+    - inpath: input path
+    - outpath: output path
+    - wf_anf: path to pickle, which is a word frequency dictionary with all words from parliamentary debates and their frequencies there: 'word': freq
+    """
     try:
-        with open('autojoined.pickle', 'rb') as f:
+        with open(autojoined, 'rb') as f:
             autojoined = pickle.load(f)
     except FileNotFoundError:
         autojoined = []
     try:
-        with open('selected.pickle', 'rb') as f:
+        with open(selected, 'rb') as f:
             selected = pickle.load(f)
     except FileNotFoundError:
         selected = []
-    # wf_anf.pickle is a word frequency dictionary with all words from parliamentary
-    # debates and their frequencies there: 'word': freq
     with open('wf_anf.pickle', 'rb') as f:
         wf_anf = pickle.load(f)
     fixbrokens(inpath,wf_anf,outpath)
+
+
+def cli():
+    """
+    Run the dehypenator from the command line.
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("-i", "--input-path",
+                        type=str,
+                        default="./",
+                        help="Input path")
+    parser.add_argument("-o", "--output-path"
+                        type=str,
+                        default="./",
+                        help="Output path")
+    parser.add_argument("--wf-anf",
+                        type=str,
+                        default="wf_anf.pickle",
+                        help="a pickled word frequency dictionary with all words from parliamentary debates and their frequencies there: 'word': freq")
+    parser.add_argument("--autojoined",
+                        type=str,
+                        default="autojoined.pickle",
+                        help="a pickle of previously autojoined entries")
+    parser.add_argument("--selected",
+                        type=str,
+                        default="selected.pickle",
+                        help="a pickle of previously selected corrections")
+    args = parser.parse_args()
+    if not args.input_path.endswith("/"):
+        args.input_path = f"{args.input_path}/"
+    if not args.output_path.endswith("/"):
+        args.output_path = f"{args.output_path}/"
+    dehyphenate(args.autojoined,
+                args.selected,
+                inpath=args.input_path,
+                outpath=args.output_path,
+                wf_anf=args.wf_anf)
