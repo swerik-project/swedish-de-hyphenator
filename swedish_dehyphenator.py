@@ -16,12 +16,12 @@ def parsejson(jfile, path):
     jdoc = jdoc.read()
     anfdict = json.loads(jdoc, encoding='utf-8')
     return anfdict
-    
+
 def savejson(jfile, path, anfdict):
     with codecs.open(path + jfile, 'w','utf-8-sig') as f:
         json.dump(anfdict, f, ensure_ascii=False, indent=4)
-    
-    
+
+
 def clean_anftext(anftext):
     # This function removes unwanted formatting from the text
     # These remove html-tags and inline headers
@@ -32,7 +32,7 @@ def clean_anftext(anftext):
     anftext = re.sub('\r',' ', anftext)
     anftext = re.sub(' {2,}',' ', anftext)
     return anftext
-    
+
 def ask_user():
     """
     Here, the user is asked what to do with an instance of
@@ -178,7 +178,7 @@ def fixbrokens(inpath,wf,outpath):
         pickle.dump(selected,f)
     with open('autojoined.pickle','wb') as f:
         pickle.dump(autojoined,f)
-        
+
 
 if __name__ == '__main__':
     inpath = "all_anf/"
