@@ -247,7 +247,7 @@ def cli():
                         type=str,
                         default="./",
                         help="Input path")
-    parser.add_argument("-o", "--output-path"
+    parser.add_argument("-o", "--output-path",
                         type=str,
                         default="./",
                         help="Output path")
