@@ -7,6 +7,9 @@ import argparse, json, os
 
 
 def fetch_config():
+    """
+    Fetch the config (dict) and config location (str)
+    """
     try:
         with open(f"{os.path.dirname(os.path.abspath(__file__))}/config-loc.txt", 'r') as loc:
             config_loc = loc.read().strip()
@@ -22,6 +25,9 @@ def fetch_config():
 
 
 def _fetch_defaults():
+    """
+    Return dict of default config values.
+    """
     return {
             "config_path":"~/.config/swedish_dehyphenator/config.json",
             "wf_path": "~/.config/swedish_dehyphenator/wf.json",
@@ -33,6 +39,16 @@ def _fetch_defaults():
 
 
 def init(args):
+    """
+    Initiate a config file.
+
+    Args:
+    - args: dict of values
+        - config_path: path to config file. default `~/.config/swedish_dehyphenator/config.json`
+        - wf_path: path to word frequency json file. default `~/.config/swedish_dehyphenator/wf.json`
+        - autojoined_path: path to previoiusly autojoined words. default `~/.config/swedish_dehyphenator/autojoined.pickle`
+        - selected_path: path to previously selected corrections. default `~/.config/swedish_dehyphenator/autojoined.pickle`
+    """
     to_write = _fetch_defaults()
     for k, v in args.items():
         if v is not None:
@@ -52,6 +68,16 @@ def init(args):
 
 
 def show_opts(args):
+    """
+    Print config dict
+
+    Args:
+    - args: dict of values
+        - config_path: path to config file. default `~/.config/swedish_dehyphenator/config.json`
+        - wf_path: path to word frequency json file. default `~/.config/swedish_dehyphenator/wf.json`
+        - autojoined_path: path to previoiusly autojoined words. default `~/.config/swedish_dehyphenator/autojoined.pickle`
+        - selected_path: path to previously selected corrections. default `~/.config/swedish_dehyphenator/autojoined.pickle`
+    """
     config, loc = fetch_config()
     print("\nConfig file located at:", loc, "\n")
     for k, v in config.items():
@@ -63,6 +89,16 @@ def show_opts(args):
 
 
 def edit(args):
+    """
+    Edit config dict. Unset keys, or keys set to None are ignored.
+
+    Args:
+    - args: dict of values
+        - config_path: path to config file. default `~/.config/swedish_dehyphenator/config.json`
+        - wf_path: path to word frequency json file. default `~/.config/swedish_dehyphenator/wf.json`
+        - autojoined_path: path to previoiusly autojoined words. default `~/.config/swedish_dehyphenator/autojoined.pickle`
+        - selected_path: path to previously selected corrections. default `~/.config/swedish_dehyphenator/autojoined.pickle`
+    """
     config, _path = fetch_config()
     for k, v in args.items():
         if k not in ["program", "config_path"]:
@@ -80,7 +116,6 @@ def cli():
     programs = {
             "init": init,
             "edit": edit,
-
             "show_opts": show_opts,
         }
     parser = argparse.ArgumentParser(description=__doc__)
