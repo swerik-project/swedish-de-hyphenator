@@ -28,6 +28,7 @@ jobs:
         pip install poetry
         pip install getch
         pip install tqdm
+        pip install pdoc
 
     - name: Build and publish module
       env: # authentication
@@ -35,6 +36,25 @@ jobs:
       run: |
         VERSION=$(echo ${{ github.ref }} | cut -d "v" -f 2 | xargs)
         echo "Change module version to $VERSION"
+        sed -e "s/\(version\s=\s\"\)[^\"]*\"/\1$VERSION\"/" pyproject.toml
+        pdoc -o docs --footer-text $VERSION -t docs/dark-mode swedish_dehyphenator
         poetry version $VERSION
         poetry build
         poetry publish -u "__token__" -p $PYPI_API_TOKEN
+
+    - name: Add and Commit generated file
+      run: |
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add pyproject.toml
+        git commit -m "chore: update version number in pyproject file"
+        git add docs
+        git commit -m "chore: update documentation"
+        git add dist
+        git commit -m "feat: add build"
+
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: main
