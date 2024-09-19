@@ -37,7 +37,7 @@ jobs:
         VERSION=$(echo ${{ github.ref }} | cut -d "v" -f 2 | xargs)
         echo "Change module version to $VERSION"
         sed -e "s/\(version\s=\s\"\)[^\"]*\"/\1$VERSION\"/" pyproject.toml
-        pdoc -o docs --footer-text $VERSION -t docs/dark-mode swedish-dehyphenator
+        pdoc -o docs --footer-text $VERSION -t docs/dark-mode swedish_dehyphenator
         poetry version $VERSION
         poetry build
         poetry publish -u "__token__" -p $PYPI_API_TOKEN
