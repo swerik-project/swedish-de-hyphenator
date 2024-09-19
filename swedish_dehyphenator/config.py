@@ -32,7 +32,7 @@ def _fetch_defaults():
             "config_path":"~/.config/swedish_dehyphenator/config.json",
             "wf_path": "~/.config/swedish_dehyphenator/wf.json",
             "autojoined_path": "~/.config/swedish_dehyphenator/autojoined.pickle",
-            "selected_path": "~/.config/swedish_dehyphenator/autojoined.pickle",
+            "selected_path": "~/.config/swedish_dehyphenator/selected.pickle",
         }
 
 
