@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "swedish-dehyphenator"
+version = "1.0.0"
+description = "A python program to remove end-line hyphenations from large texts."
+authors = ["Stian Rødven Eide", "bobborges robert.borges@statistik.uu.se"]
+packages = [{include = "swedish_dehyphenator", from = ""}]
+license = "GPLv3"
+readme = "README.md"
+repository = "https://github.com/swerik-project/"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+tqdm = "*"
+getch = "*"
+
+[tool.poetry.scripts]
+swe-dehyph = "swedish_dehyphenator.swedish_dehyphenator:cli"
+config-swe-dehyph = "swedish_dehyphenator.config:cli"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
