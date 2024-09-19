@@ -5,6 +5,7 @@ A python program to remove end-line hyphenations from large texts.
 
 Author: Stian Rødven Eide
 """
+from swedish_dehyphenator.config import fetch_config
 from tqdm import tqdm
 import argparse
 import getch
@@ -21,9 +22,9 @@ def parsejson(jfile):
     Reads a json file in utf-8 and returns its contents as a nested dictionary
 
     Args:
-    jfile: json file, incl path
+    - jfile: json file, incl path
     """
-    with open(jfile, 'r', 'utf-8-sig'): as jdoc:
+    with open(jfile, 'r', 'utf-8-sig') as jdoc:
         anfdict = json.loads(jdoc, encoding='utf-8')
 
     return anfdict
@@ -36,9 +37,9 @@ def savejson(jfile, path, anfdict):
     Saves formatted JSON file.
 
     Args:
-    jfile: json file name
-    path: path to json file
-    anfdict: dict to save
+    - jfile: json file name
+    - path: path to json file
+    - anfdict: dict to save
     """
     with codecs.open(path + jfile, 'w','utf-8-sig') as f:
         json.dump(anfdict, f, ensure_ascii=False, indent=4)
@@ -52,7 +53,7 @@ def clean_anftext(anftext):
     These remove html-tags and inline headers
 
     Args:
-    anftext: input text
+    - anftext: input text
     """
     anftext = re.sub('<p> STYLEREF.*?>',' ', anftext)
     anftext = re.sub('<.*?>',' ', anftext)
@@ -82,7 +83,38 @@ def _print(s, p):
 
 
 
-def ask_user(progbar=None):
+
+def file_loc_prompt(filetype):
+    """
+    Prompt user for a file location, if one is not set in the config.
+
+    Args:
+    - filetype: A string helper so we know what variable the program wants to write
+    """
+    file_loc = input(f"I don't know where to save your - {filetype} - file. Please enter a path (default: ./):\n")
+    if file_loc.strip() == '':
+        file_loc = "./"
+
+    return file_loc
+
+
+
+
+def _log_results(selected, autojoined, config=None):
+    if config is None:
+        config = {}
+    if 'selected_path' not in config or config['selected_path'] is None:
+        config['selected_path'] = file_loc_prompt("selected")
+    with open(config['selected_path'],'wb') as f:
+        pickle.dump(selected, f)
+    if 'autojoined_path' not in config or config['autojoined_path'] is None:
+        config['autojoined_path'] = file_loc_prompt("autojoined")
+    with open(config['autojoined_path'],'wb') as f:
+        pickle.dump(autojoined,f)
+
+
+
+def ask_user(autojoined, selected, log_results, progbar=None, config=None):
     """
     Here, the user is asked what to do with an instance of
     'word- anotherword'
@@ -93,6 +125,13 @@ def ask_user(progbar=None):
     (K)eep means to keep it as is:
         word- anotherword
     A single character of the above is returned.
+
+    Args:
+    - autojoined: auomatic fixes based on heuristic
+    - selected: previously selected fixes
+    - log_results: to log or not to log
+    - progbar: a progress bar instance
+    - config: a config dict
     """
     _print("Would you like to (J)oin, (D)ash or (K)eep it?", progbar)
     #TODO: cosmetic -- getch prints a new line and the progress bar wont stay on the bottom line :|
@@ -105,23 +144,32 @@ def ask_user(progbar=None):
         _print("Are you sure you want to abort? (Y/N)", progbar)
         if getch.getch().lower() == 'y':
             _print("Aborting!", progbar)
-            with open('selected.pickle','wb') as f:
-                pickle.dump(selected,f)
-            with open('autojoined.pickle','wb') as f:
-                pickle.dump(autojoined,f)
+            if log_results:
+                _log_results(selected, autojoined, config=config)
         else:
-            ask_user()
+            ask_user(autojoined, selected, log_results, progbar=progbar, config=config)
     else:
         _print("Try again", progbar)
-        ask_user()
+        ask_user(autojoined, selected, log_results, progbar=progbar, config=config)
 
     return char
 
 
 
 
-def dehyphenate_text(_text, wf, selected, dcounter, progbar=None):
-
+def dehyphenate_text(_text, wf, selected, autojoined, log_results, dcounter, progbar=None, config=None):
+    """
+    Dehyphenate text input
+    Args:
+    - _text: a string to dehyphenate
+    - wf: path to pickle, which is a word frequency dictionary with all words from parliamentary debates and their frequencies there: 'word': freq
+    - selected: previously selected fixes
+    - autojoined: auomatic fixes based on heuristic
+    - log_results: to log or not to log
+    - dcounter: couter of hyphenation fixes
+    - progbar: progress bar instance
+    - config: a config dict
+    """
     _text = clean_anftext(_text)
     dashes = re.findall('\w+- \w+', _text)
     if dashes is None:
@@ -159,7 +207,7 @@ def dehyphenate_text(_text, wf, selected, dcounter, progbar=None):
                 newdash = ddash
             else:
                 _print("They're equally frequent")
-                tbd = ask_user()
+                tbd = ask_user(autojoined, selected, log_results, progbar=progbar, config=config)
                 if tbd == 'j':
                     newdash = jdash
                 elif tbd == 'd':
@@ -180,7 +228,7 @@ def dehyphenate_text(_text, wf, selected, dcounter, progbar=None):
                 autojoined.append(jdash)
                 newdash = jdash
             else:
-                tbd = ask_user()
+                tbd = ask_user(autojoined, selected, log_results, progbar=progbar, config=config)
                 if tbd == 'j':
                     newdash = jdash
                 elif tbd == 'd':
@@ -199,69 +247,88 @@ def dehyphenate_text(_text, wf, selected, dcounter, progbar=None):
 
 
 
-def dehyphenate_anf_dict(_files, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter):
+def dehyphenate_anf_dict(_files, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter, config=None):
     """
-    Find dashes in text and potentially remove them.
+    Find dashes in anf dict text and potentially remove them.
 
     Args:
     - _files: list of input files prepared in `dehyphenate_from`
     - wf_anf: path to pickle, which is a word frequency dictionary with all words from parliamentary debates and their frequencies there: 'word': freq
-    - selected: previously selected fixes,
-    - autojoined: auomatic fixes based on heuristic,
+    - selected: previously selected fixes
+    - autojoined: auomatic fixes based on heuristic
     - output_path: output path
     - log_results: to log or not to log
     - dcounter: couter of hyphenation fixes
     - fcounter: file process counter
+    - config: a config dict
     """
     progbar = tqdm(total=len(_files), desc="Files", position=0, leave=True)
     progbar.update(0)
     for _file in _files:
         fcounter += 1
         anfdict = parsejson(_file)
-        _text, dcounter = dehyphenate_text( anfdict['anforande']['anforandetext'], wf_anf, selected, dcounter, progbar=progbar)
+        _text, dcounter = dehyphenate_text(anfdict['anforande']['anforandetext'], wf_anf, selected, autojoined, dcounter, progbar=progbar, config=config)
         anftext_clean = _text.strip()
         anfdict['anforande']['anforandetext'] = anftext_clean
         savejson(f"{_file.split('/')[-1]}", output_path, anfdict)
     _print("We went through a total of {} dashwords!".format(dcounter), progbar)
     if log_results:
-        with open('selected.pickle','wb') as f:
-            pickle.dump(selected,f)
-        with open('autojoined.pickle','wb') as f:
-            pickle.dump(autojoined,f)
+        _log_results(selected, autojoined, config=config)
 
     return fcounter, dcounter
 
 
 
 
-def dehyphenate_txt_file(_files, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter):
+def dehyphenate_txt_file(_files, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter, config=None):
+    """
+    Find dashes in text files and potentially remove them.
+
+    Args:
+    - _files: list of input files prepared in `dehyphenate_from`
+    - wf_anf: path to pickle, which is a word frequency dictionary with all words from parliamentary debates and their frequencies there: 'word': freq
+    - selected: previously selected fixes
+    - autojoined: auomatic fixes based on heuristic
+    - output_path: output path
+    - log_results: to log or not to log
+    - dcounter: couter of hyphenation fixes
+    - fcounter: file process counter
+    - config: a config dict
+    """
     progbar = tqdm(total=len(_files), desc="Files", position=0, leave=True)
     progbar.update(0)
     for _file in _files:
         fcounter += 1
         with open(_file, 'r') as f:
             pre_text = clean_anftext(f.read())
-        _text, dcounter = dehyphenate_text(pre_text, wf_anf, selected, dcounter, progbar=progbar)
+        _text, dcounter = dehyphenate_text(pre_text, wf_anf, selected, autojoined, dcounter, progbar=progbar, config=config)
         with open(f"{output_path}{_file.split('/')[-1]}", "w+") as o:
             o.write(_text)
         progbar.update(1)
     if log_results:
-        with open('selected.pickle','wb') as f:
-            pickle.dump(selected,f)
-        with open('autojoined.pickle','wb') as f:
-            pickle.dump(autojoined,f)
+        _log_results(selected, autojoined, config=config)
 
     return fcounter, dcounter
 
 
 
 
-def dehyphenate_from(input_path, source_type, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter):
+def dehyphenate_from(input_path, source_type, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter, config=None):
     """
     Deyphenate text in files.
 
     Args:
-    input_path, source_type, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter
+    - input_path: path to a directory of files to operate on
+    - source_type: tyope of files in the source directory (anf_dict or txt_file)
+    - wf_anf: path to pickle, which is a word frequency dictionary with all words from parliamentary debates and their frequencies there: 'word': freq
+    - selected: previously selected fixes,
+    - autojoined: automatic fixes based on heuristic
+    - output_path: where to write output (file names will be the same as inpug files
+    - log_results: to log or not to log
+    - dcounter: couter of hyphenation fixes
+    - fcounter: file process counter
+    - config: a config dict
+
     """
     _fns = {
         "anf_dict": dehyphenate_anf_dict,
@@ -272,7 +339,7 @@ def dehyphenate_from(input_path, source_type, wf_anf, selected, autojoined, outp
     else:
         _files = [input_path]
 
-    fcounter, dcounter = _fns[source_type](_files, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter)
+    fcounter, dcounter = _fns[source_type](_files, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter, config=config)
 
     return fcounter, dcounter
 
@@ -286,14 +353,15 @@ def dehyphenate(input_string=None,
                 output_path=None,
                 source_type=None,
                 wf_anf=None,
-                log_results=True):
+                log_results=True,
+                config=None):
     """
     Main dehyphenator program.
 
     Args:
     - input_string: a raw string to dehyphenate
-    - autojoined: path to autojoined.pickle    seems to just be a list
-    - selected: path to selected.pickle)       seems to just be a list
+    - autojoined: path to autojoined.pickle, a list of previous automatic fixes based on heuristic
+    - selected: path to selected.pickle, a list of previously selected fixes
     - input_path: input path
     - output_path: output path
     - wf_anf: path to pickle, which is a word frequency dictionary with all words from parliamentary debates and their frequencies there: 'word': freq
@@ -304,12 +372,12 @@ def dehyphenate(input_string=None,
     try:
         with open(autojoined, 'rb') as f:
             autojoined = pickle.load(f)
-    except FileNotFoundError:
+    except:
         autojoined = []
     try:
         with open(selected, 'rb') as f:
             selected = pickle.load(f)
-    except FileNotFoundError:
+    except:
         selected = []
     try:
         with open('wf_anf.pickle', 'rb') as f:
@@ -318,14 +386,18 @@ def dehyphenate(input_string=None,
         wf_anf = None
 
     if input_string is not None:
-        output_string, dcounter = dehyphenate_text(input_string, wf_anf, selected, dcounter)
+        output_string, dcounter = dehyphenate_text(input_string, wf_anf, selected, autojoined, log_results, dcounter, config=config)
+        if log_results:
+            _log_results(selected, autojoined, config=config)
+        return output_string, dcounter, fcounter
     else:
-        fcounter, dcounter = dehyphenate_from(input_path, source_type, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter)
+        fcounter, dcounter = dehyphenate_from(input_path, source_type, wf_anf, selected, autojoined, output_path, log_results, dcounter, fcounter, config=config)
+        return None, dcounter, fcounter
 
 
 
-#def cli():
-if __name__ == '__main__':
+#if __name__ == '__main__':
+def cli():
     """
     Run the dehypenator from the command line.
     """
@@ -355,20 +427,27 @@ if __name__ == '__main__':
                         help="Output path")
     parser.add_argument("--wf-anf",
                         type=str,
-                        default="./wf_anf.pickle",
+                        default=None,
                         help="a pickled word frequency dictionary with all words from parliamentary debates and their frequencies there: 'word': freq")
     parser.add_argument("--autojoined",
                         type=str,
-                        default="./autojoined.pickle",
+                        default=None,
                         help="a pickle of previously autojoined entries")
     parser.add_argument("--selected",
                         type=str,
-                        default="./selected.pickle",
+                        default=None,
                         help="a pickle of previously selected corrections")
     parser.add_argument("--log-results", type=bool, default=True)
 
     args = parser.parse_args()
-    print(args)
+    config, conf_loc = fetch_config()
+    if args.wf_anf is None:
+        args.wf_anf = config["wf_path"]
+    if args.autojoined is None:
+        args.autojoined = config["autojoined_path"]
+    if args.selected is None:
+        args.selected = config["selected_path"]
+
     try:
         if os.path.isdir(args.input_path) and not args.input_path.endswith("/"):
             args.input_path = f"{args.input_path}/"
@@ -376,5 +455,9 @@ if __name__ == '__main__':
         pass
     if os.path.isdir(args.output_path) and not args.output_path.endswith("/"):
         args.output_path = f"{args.output_path}/"
-    dehyphenate(**vars(args))
+    output_string, d, f = dehyphenate(**vars(args))
+    if output_string is None:
+        print(f"{d} hyphens removed in {f} files")
+    else:
+        print(output_string)
 
