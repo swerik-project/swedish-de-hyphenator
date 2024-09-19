@@ -2,7 +2,7 @@
 """
 Set configuration options for swedish_dehyphenator.
 """
-import argparse, json, os
+import argparse, json, os, sys
 
 
 
